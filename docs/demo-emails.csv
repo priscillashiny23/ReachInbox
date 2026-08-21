@@ -1,0 +1,10 @@
+email,firstName,lastName
+alice@example.com,Alice,Smith
+bob@example.com,Bob,Jones
+charlie@example.com,Charlie,Brown
+david@example.com,David,Miller
+emma@example.com,Emma,Wilson
+fiona@example.com,Fiona,Taylor
+alice@example.com,Alice,Smith
+invalid-email-address,Invalid,User
+george@example.com,George,Davis
