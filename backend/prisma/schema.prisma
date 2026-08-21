@@ -1,0 +1,72 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum EmailStatus {
+  SCHEDULED
+  PROCESSING
+  SENT
+  FAILED
+}
+
+model User {
+  id        String   @id @default(uuid())
+  googleId  String   @unique
+  name      String
+  email     String   @unique
+  password  String?
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  emails    Email[]
+
+  @@index([email])
+}
+
+model Sender {
+  id               String   @id @default(uuid())
+  email            String   @unique
+  displayName      String
+  etherealUser     String
+  etherealPassword String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  emails           Email[]
+
+  @@index([email])
+}
+
+model Email {
+  id             String      @id @default(uuid())
+  userId         String
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         Sender      @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  recipientEmail String
+  subject        String
+  body           String
+  scheduledAt    DateTime
+  sentAt         DateTime?
+  status         EmailStatus @default(SCHEDULED)
+  attempts       Int         @default(0)
+  errorMessage   String?
+  bullmqJobId    String?     @unique
+  attachments    Json?
+  isStarred      Boolean     @default(false)
+  isArchived     Boolean     @default(false)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([senderId])
+}
+
