@@ -1,5 +1,5 @@
 import { Worker, Job } from "bullmq";
-import { redisConfig } from "../config/redis";
+import { createRedisInstance } from "../config/redis";
 import { prisma } from "../config/db";
 import { emailService } from "../services/email.service";
 import { emailQueue } from "../queues/email.queue";
@@ -10,7 +10,7 @@ dotenv.config();
 
 const workerConcurrency = parseInt(process.env.WORKER_CONCURRENCY || "5", 10);
 
-const redisClient = new Redis(redisConfig);
+const redisClient = createRedisInstance();
 
 const rateLimitLua = `
 local nextSendAtKey = KEYS[1]
@@ -209,7 +209,7 @@ export const emailWorker = new Worker(
     }
   },
   {
-    connection: redisConfig,
+    connection: createRedisInstance(),
     concurrency: workerConcurrency,
   }
 );
@@ -219,8 +219,10 @@ emailWorker.on("completed", async (job) => {
   if (job.returnvalue && job.returnvalue.rescheduled) {
     const { emailId, delay } = job.returnvalue;
     try {
-      console.log(`[Worker] Re-enqueuing rescheduled job ${job.id} with delay ${delay} ms`);
-      await emailQueue.add(
+      const newJobId = `email-${emailId}-resched-${Date.now()}`;
+      console.log(`[Worker] Re-enqueuing rescheduled job ${job.id} as ${newJobId} with delay ${delay} ms`);
+      
+      const newJob = await emailQueue.add(
         "sendEmail",
         { 
           emailId,
@@ -228,10 +230,16 @@ emailWorker.on("completed", async (job) => {
           maxPerHour: job.data.maxPerHour
         },
         {
-          jobId: job.id,
+          jobId: newJobId,
           delay: delay,
         }
       );
+
+      // Update the DB with the new Job ID
+      await prisma.email.update({
+        where: { id: emailId },
+        data: { bullmqJobId: newJob.id }
+      });
     } catch (err: any) {
       console.error(`[Worker] Error re-enqueuing rescheduled job ${job.id}:`, err.message);
     }

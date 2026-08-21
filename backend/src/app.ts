@@ -9,6 +9,12 @@ import authRoutes from "./routes/auth.routes";
 
 const app = express();
 
+const isProduction = process.env.NODE_ENV === "production";
+
+if (isProduction) {
+  app.set("trust proxy", 1); // Trust first proxy (Render/Vercel load balancer)
+}
+
 app.use(
   cors({
     origin: process.env.FRONTEND_URL || "http://localhost:5173",
@@ -23,8 +29,8 @@ app.use(
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: false,
-      sameSite: "lax",
+      secure: isProduction,
+      sameSite: isProduction ? "none" : "lax",
       maxAge: 24 * 60 * 60 * 1000,
     },
   })
@@ -89,5 +95,11 @@ const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
+  
+  // Start the BullMQ worker in the same process if running in production
+  if (isProduction || process.env.START_WORKER_IN_API === "true") {
+    console.log("[App] Starting background email worker in the same process...");
+    require("./workers/email.worker");
+  }
 });
 // Reload trigger after database schema updates for isStarred and isArchived

@@ -1,0 +1,30 @@
+services:
+  # Combined Backend API + Background Queue Worker
+  - type: web
+    name: reachinbox-api
+    env: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false # Input Supabase Connection String
+      - key: REDIS_URL
+        sync: false # Input Upstash Connection String
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: FRONTEND_URL
+        sync: false # Input Vercel Frontend URL
+      - key: MIN_EMAIL_DELAY_MS
+        value: 2000
+      - key: MAX_EMAILS_PER_HOUR
+        value: 200
+      - key: WORKER_CONCURRENCY
+        value: 5
+      - key: QUEUE_MAX_ATTEMPTS
+        value: 3
+      - key: QUEUE_BACKOFF_MS
+        value: 5000

@@ -307,3 +307,87 @@ Run these tests in `backend/` to verify each core scheduling requirement:
 
 ## Demo
 For a recommended demonstration flow, follow the timelines detailed in [DEMO_SCRIPT.md](file:///c:/Users/Priscilla/Desktop/ReachInbox/docs/DEMO_SCRIPT.md) and use the sample data provided in [demo-emails.csv](file:///c:/Users/Priscilla/Desktop/ReachInbox/docs/demo-emails.csv).
+
+---
+
+## Production Deployment (100% Free Tier, No Credit Card Required)
+
+This project is configured to run on completely free-tier services without requiring a credit card, paid trial, or subscription.
+
+### Architecture Overview
+1. **Frontend**: Hosted on **Vercel** (Free Hobby plan).
+2. **Backend API + Worker**: Hosted on **Render** as a single **Free Web Service**.
+   - Express server and BullMQ worker run in the same process to eliminate Render Background Worker costs.
+   - Pinned 24/7 awake using **cron-job.org** to prevent Render from sleeping.
+3. **Database (PostgreSQL)**: Hosted on **Supabase** (Free Tier).
+4. **Queue Broker (Redis)**: Hosted on **Upstash** (Free Serverless Redis).
+
+---
+
+### Step-by-Step Deployment Instructions
+
+#### 1. Setup PostgreSQL (Supabase)
+1. Sign up on [Supabase](https://supabase.com) (free, no credit card).
+2. Create a new project and set a secure database password.
+3. Go to **Project Settings** > **Database** and copy the **Transaction Connection String** (mode: `transaction`, port `6543`, protocol `postgresql://`).
+4. This connection string is your production `DATABASE_URL`.
+
+#### 2. Setup Redis (Upstash)
+1. Sign up on [Upstash](https://upstash.com) (free, no credit card).
+2. Create a new serverless Redis database.
+3. Copy the **Redis Connection URL** (e.g., `rediss://default:your-password@your-endpoint.upstash.io:6379`).
+4. This connection URL is your production `REDIS_URL`.
+
+#### 3. Deploy Backend (Render)
+1. Sign up on [Render](https://render.com) (free, no credit card).
+2. Create a **New** > **Web Service**.
+3. Link your GitHub repository.
+4. Set the following settings:
+   - **Environment**: `Node`
+   - **Build Command**: `npm install && npx prisma generate && npm run build`
+   - **Start Command**: `npm run start`
+   - **Instance Type**: `Free`
+5. Click **Advanced** and add these Environment Variables:
+   - `NODE_ENV`: `production`
+   - `DATABASE_URL`: *(Your Supabase Connection String)*
+   - `REDIS_URL`: *(Your Upstash Connection URL)*
+   - `SESSION_SECRET`: *(A random secure secret key)*
+   - `FRONTEND_URL`: *(Your Vercel frontend URL, e.g., https://your-app.vercel.app)*
+   - `PORT`: `10000`
+   - `MIN_EMAIL_DELAY_MS`: `2000`
+   - `MAX_EMAILS_PER_HOUR`: `200`
+   - `WORKER_CONCURRENCY`: `5`
+6. Click **Deploy Web Service**.
+7. Copy your backend service URL (e.g., `https://reachinbox-api.onrender.com`).
+
+#### 4. Run Database Migrations
+Before using the app, push the schema to the Supabase database. In your local terminal, run:
+```bash
+# Set DATABASE_URL locally or run directly:
+DATABASE_URL="your_supabase_connection_string" npx prisma db push --schema=backend/prisma/schema.prisma
+```
+
+#### 5. Deploy Frontend (Vercel)
+1. Sign up on [Vercel](https://vercel.com) (free, no credit card).
+2. Create a new project and import your GitHub repository.
+3. In the **Environment Variables** section, add:
+   - `VITE_API_URL`: *(Your Render Backend URL, e.g., https://reachinbox-api.onrender.com)*
+4. Click **Deploy**.
+5. Copy your frontend URL and update the `FRONTEND_URL` environment variable on your Render backend service.
+
+#### 6. Keep Backend Awake 24/7 (cron-job.org)
+Render's free tier spins down after 15 minutes of inactivity. To keep the background worker and API awake continuously:
+1. Sign up on [cron-job.org](https://cron-job.org/) (free, no credit card).
+2. Create a new cron job.
+3. Set the target URL to your Render backend root endpoint: `https://your-api.onrender.com/`
+4. Set the execution interval to every **10 minutes**.
+
+---
+
+### Free-Tier Limitations
+- **Render Web Service**: Takes ~50 seconds to spin up from a cold start if it does sleep. Pinging it every 10 minutes prevents this.
+- **Upstash Redis**: Limited to 10,000 requests/day, which is perfect for demonstration and testing.
+- **Supabase**: Free database projects will pause after 1 week of inactivity (easily unpaused from the dashboard). Pinging the API keeps it active.
+- **Google OAuth Redirect URIs**: You must update the authorized redirect URIs in Google Cloud Console to match your production URLs:
+  - Authorized JavaScript Origin: `https://your-app.vercel.app`
+  - Authorized Redirect URI: `https://your-api.onrender.com/api/auth/google/callback`

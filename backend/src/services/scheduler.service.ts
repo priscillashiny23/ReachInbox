@@ -82,7 +82,12 @@ export class SchedulerService {
     return scheduledEmails;
   }
   async cancelEmail(emailId: string) {
-    const jobId = `email-${emailId}`;
+    const email = await prisma.email.findUnique({
+      where: { id: emailId },
+      select: { bullmqJobId: true }
+    });
+    
+    const jobId = email?.bullmqJobId || `email-${emailId}`;
     const job = await emailQueue.getJob(jobId);
     if (job) {
       await job.remove();

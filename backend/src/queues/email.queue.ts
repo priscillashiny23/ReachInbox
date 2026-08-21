@@ -1,5 +1,5 @@
 import { Queue } from "bullmq";
-import { redisConfig } from "../config/redis";
+import { createRedisInstance } from "../config/redis";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -10,7 +10,7 @@ const backoffMs = parseInt(process.env.QUEUE_BACKOFF_MS || "5000", 10);
 export const EMAIL_QUEUE_NAME = "emailQueue";
 
 export const emailQueue = new Queue(EMAIL_QUEUE_NAME, {
-  connection: redisConfig,
+  connection: createRedisInstance(),
   defaultJobOptions: {
     attempts: maxAttempts,
     backoff: {
